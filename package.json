@@ -28,6 +28,7 @@
   "dependencies": {
     "@mapbox/cloudfriend": "^1.9.0",
     "aws-sdk": "^2.3.5",
+    "body-parser": "^1.19.0",
     "nan": "^2.10.0",
     "node-cmake": "^1.2.0",
     "node-gyp": "^3.6.2",

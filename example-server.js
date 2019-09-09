@@ -3,6 +3,8 @@
 const bindings = require('./index');
 const express = require('express');
 const async = require('async');
+const bodyParser = require('body-parser');
+
 
 function main() {
   const argv = process.argv.slice(1);
@@ -21,11 +23,16 @@ function main() {
     console.log(`${req.method}  ${req.url}  ${req.headers['user-agent']}`);
     next();
   });
+  
+  app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
+    extended: true
+  }));
 
   const annotator = new bindings.Annotator();
 
   app.get('/coordlist/:coordlist', coordListHandler(annotator));
   app.get('/nodelist/:nodelist', nodeListHandler(annotator));
+  app.post('/nodes/', nodeListPostHandler(annotator));
 
   annotator.loadOSMExtract(osmFile, tagFile, (err) => {
     if (err)
@@ -40,7 +47,50 @@ function main() {
 
 function nodeListHandler(annotator) {
   return (req, res) => {
+    res.set({
+	'content-type': 'application/json',
+    });
     const nodes = req.params.nodelist
+                    .split(',')
+                    .map(x => parseInt(x, 10));
+
+    const invalid = (x) => !isFinite(x) || x === null;
+
+    if (nodes.some(invalid))
+      return res.sendStatus(400);
+
+    annotator.annotateRouteFromNodeIds(nodes, (err, wayIds) => {
+      if (err)
+        return res.sendStatus(400);
+
+      var response = {"way_indexes": [], "ways_seen": []};
+      var way_indexes = {};
+
+      async.each(wayIds, (way_id, next) => {
+        if (way_id === null) return next();
+          annotator.getAllTagsForWayId(way_id, (err, tags) => {
+            if (err) res.sendStatus(400);
+            var wid = tags["_way_id"];
+            if (!way_indexes.hasOwnProperty(wid)) {
+              way_indexes[wid] = Object.keys(way_indexes).length;
+              response.ways_seen.push(tags);
+            }
+            response.way_indexes.push(way_indexes[wid]);
+            next();
+          });
+      }, (err, data) => {
+        res.json(response);
+      });
+    });
+  };
+}
+
+function nodeListPostHandler(annotator) {
+  return (req, res) => {
+    res.set({
+	'content-type': 'application/json',
+    });
+    const nodes = req.body.nodelist
                     .split(',')
                     .map(x => parseInt(x, 10));
 
