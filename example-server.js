@@ -90,7 +90,7 @@ function nodeListPostHandler(annotator) {
     res.set({
 	'content-type': 'application/json',
     });
-    const nodes = req.body.nodelist
+    const nodes = req.body.nodes
                     .split(',')
                     .map(x => parseInt(x, 10));
 
